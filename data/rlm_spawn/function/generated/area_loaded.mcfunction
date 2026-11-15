@@ -1,4 +1,20 @@
 # Généré par tools/convert_spawn_base.py : ne pas éditer.
+execute unless loaded ~-112 ~ ~-112 run return fail
+execute unless loaded ~-112 ~ ~-96 run return fail
+execute unless loaded ~-112 ~ ~-80 run return fail
+execute unless loaded ~-112 ~ ~-64 run return fail
+execute unless loaded ~-112 ~ ~-48 run return fail
+execute unless loaded ~-112 ~ ~-32 run return fail
+execute unless loaded ~-112 ~ ~-16 run return fail
+execute unless loaded ~-112 ~ ~0 run return fail
+execute unless loaded ~-112 ~ ~16 run return fail
+execute unless loaded ~-112 ~ ~32 run return fail
+execute unless loaded ~-112 ~ ~48 run return fail
+execute unless loaded ~-112 ~ ~64 run return fail
+execute unless loaded ~-112 ~ ~80 run return fail
+execute unless loaded ~-112 ~ ~96 run return fail
+execute unless loaded ~-112 ~ ~112 run return fail
+execute unless loaded ~-96 ~ ~-112 run return fail
 execute unless loaded ~-96 ~ ~-96 run return fail
 execute unless loaded ~-96 ~ ~-80 run return fail
 execute unless loaded ~-96 ~ ~-64 run return fail
@@ -12,6 +28,8 @@ execute unless loaded ~-96 ~ ~48 run return fail
 execute unless loaded ~-96 ~ ~64 run return fail
 execute unless loaded ~-96 ~ ~80 run return fail
 execute unless loaded ~-96 ~ ~96 run return fail
+execute unless loaded ~-96 ~ ~112 run return fail
+execute unless loaded ~-80 ~ ~-112 run return fail
 execute unless loaded ~-80 ~ ~-96 run return fail
 execute unless loaded ~-80 ~ ~-80 run return fail
 execute unless loaded ~-80 ~ ~-64 run return fail
@@ -25,6 +43,8 @@ execute unless loaded ~-80 ~ ~48 run return fail
 execute unless loaded ~-80 ~ ~64 run return fail
 execute unless loaded ~-80 ~ ~80 run return fail
 execute unless loaded ~-80 ~ ~96 run return fail
+execute unless loaded ~-80 ~ ~112 run return fail
+execute unless loaded ~-64 ~ ~-112 run return fail
 execute unless loaded ~-64 ~ ~-96 run return fail
 execute unless loaded ~-64 ~ ~-80 run return fail
 execute unless loaded ~-64 ~ ~-64 run return fail
@@ -38,6 +58,8 @@ execute unless loaded ~-64 ~ ~48 run return fail
 execute unless loaded ~-64 ~ ~64 run return fail
 execute unless loaded ~-64 ~ ~80 run return fail
 execute unless loaded ~-64 ~ ~96 run return fail
+execute unless loaded ~-64 ~ ~112 run return fail
+execute unless loaded ~-48 ~ ~-112 run return fail
 execute unless loaded ~-48 ~ ~-96 run return fail
 execute unless loaded ~-48 ~ ~-80 run return fail
 execute unless loaded ~-48 ~ ~-64 run return fail
@@ -51,6 +73,8 @@ execute unless loaded ~-48 ~ ~48 run return fail
 execute unless loaded ~-48 ~ ~64 run return fail
 execute unless loaded ~-48 ~ ~80 run return fail
 execute unless loaded ~-48 ~ ~96 run return fail
+execute unless loaded ~-48 ~ ~112 run return fail
+execute unless loaded ~-32 ~ ~-112 run return fail
 execute unless loaded ~-32 ~ ~-96 run return fail
 execute unless loaded ~-32 ~ ~-80 run return fail
 execute unless loaded ~-32 ~ ~-64 run return fail
@@ -64,6 +88,8 @@ execute unless loaded ~-32 ~ ~48 run return fail
 execute unless loaded ~-32 ~ ~64 run return fail
 execute unless loaded ~-32 ~ ~80 run return fail
 execute unless loaded ~-32 ~ ~96 run return fail
+execute unless loaded ~-32 ~ ~112 run return fail
+execute unless loaded ~-16 ~ ~-112 run return fail
 execute unless loaded ~-16 ~ ~-96 run return fail
 execute unless loaded ~-16 ~ ~-80 run return fail
 execute unless loaded ~-16 ~ ~-64 run return fail
@@ -77,6 +103,8 @@ execute unless loaded ~-16 ~ ~48 run return fail
 execute unless loaded ~-16 ~ ~64 run return fail
 execute unless loaded ~-16 ~ ~80 run return fail
 execute unless loaded ~-16 ~ ~96 run return fail
+execute unless loaded ~-16 ~ ~112 run return fail
+execute unless loaded ~0 ~ ~-112 run return fail
 execute unless loaded ~0 ~ ~-96 run return fail
 execute unless loaded ~0 ~ ~-80 run return fail
 execute unless loaded ~0 ~ ~-64 run return fail
@@ -90,6 +118,8 @@ execute unless loaded ~0 ~ ~48 run return fail
 execute unless loaded ~0 ~ ~64 run return fail
 execute unless loaded ~0 ~ ~80 run return fail
 execute unless loaded ~0 ~ ~96 run return fail
+execute unless loaded ~0 ~ ~112 run return fail
+execute unless loaded ~16 ~ ~-112 run return fail
 execute unless loaded ~16 ~ ~-96 run return fail
 execute unless loaded ~16 ~ ~-80 run return fail
 execute unless loaded ~16 ~ ~-64 run return fail
@@ -103,6 +133,8 @@ execute unless loaded ~16 ~ ~48 run return fail
 execute unless loaded ~16 ~ ~64 run return fail
 execute unless loaded ~16 ~ ~80 run return fail
 execute unless loaded ~16 ~ ~96 run return fail
+execute unless loaded ~16 ~ ~112 run return fail
+execute unless loaded ~32 ~ ~-112 run return fail
 execute unless loaded ~32 ~ ~-96 run return fail
 execute unless loaded ~32 ~ ~-80 run return fail
 execute unless loaded ~32 ~ ~-64 run return fail
@@ -116,6 +148,8 @@ execute unless loaded ~32 ~ ~48 run return fail
 execute unless loaded ~32 ~ ~64 run return fail
 execute unless loaded ~32 ~ ~80 run return fail
 execute unless loaded ~32 ~ ~96 run return fail
+execute unless loaded ~32 ~ ~112 run return fail
+execute unless loaded ~48 ~ ~-112 run return fail
 execute unless loaded ~48 ~ ~-96 run return fail
 execute unless loaded ~48 ~ ~-80 run return fail
 execute unless loaded ~48 ~ ~-64 run return fail
@@ -129,6 +163,8 @@ execute unless loaded ~48 ~ ~48 run return fail
 execute unless loaded ~48 ~ ~64 run return fail
 execute unless loaded ~48 ~ ~80 run return fail
 execute unless loaded ~48 ~ ~96 run return fail
+execute unless loaded ~48 ~ ~112 run return fail
+execute unless loaded ~64 ~ ~-112 run return fail
 execute unless loaded ~64 ~ ~-96 run return fail
 execute unless loaded ~64 ~ ~-80 run return fail
 execute unless loaded ~64 ~ ~-64 run return fail
@@ -142,6 +178,8 @@ execute unless loaded ~64 ~ ~48 run return fail
 execute unless loaded ~64 ~ ~64 run return fail
 execute unless loaded ~64 ~ ~80 run return fail
 execute unless loaded ~64 ~ ~96 run return fail
+execute unless loaded ~64 ~ ~112 run return fail
+execute unless loaded ~80 ~ ~-112 run return fail
 execute unless loaded ~80 ~ ~-96 run return fail
 execute unless loaded ~80 ~ ~-80 run return fail
 execute unless loaded ~80 ~ ~-64 run return fail
@@ -155,6 +193,8 @@ execute unless loaded ~80 ~ ~48 run return fail
 execute unless loaded ~80 ~ ~64 run return fail
 execute unless loaded ~80 ~ ~80 run return fail
 execute unless loaded ~80 ~ ~96 run return fail
+execute unless loaded ~80 ~ ~112 run return fail
+execute unless loaded ~96 ~ ~-112 run return fail
 execute unless loaded ~96 ~ ~-96 run return fail
 execute unless loaded ~96 ~ ~-80 run return fail
 execute unless loaded ~96 ~ ~-64 run return fail
@@ -168,4 +208,20 @@ execute unless loaded ~96 ~ ~48 run return fail
 execute unless loaded ~96 ~ ~64 run return fail
 execute unless loaded ~96 ~ ~80 run return fail
 execute unless loaded ~96 ~ ~96 run return fail
+execute unless loaded ~96 ~ ~112 run return fail
+execute unless loaded ~112 ~ ~-112 run return fail
+execute unless loaded ~112 ~ ~-96 run return fail
+execute unless loaded ~112 ~ ~-80 run return fail
+execute unless loaded ~112 ~ ~-64 run return fail
+execute unless loaded ~112 ~ ~-48 run return fail
+execute unless loaded ~112 ~ ~-32 run return fail
+execute unless loaded ~112 ~ ~-16 run return fail
+execute unless loaded ~112 ~ ~0 run return fail
+execute unless loaded ~112 ~ ~16 run return fail
+execute unless loaded ~112 ~ ~32 run return fail
+execute unless loaded ~112 ~ ~48 run return fail
+execute unless loaded ~112 ~ ~64 run return fail
+execute unless loaded ~112 ~ ~80 run return fail
+execute unless loaded ~112 ~ ~96 run return fail
+execute unless loaded ~112 ~ ~112 run return fail
 return 1

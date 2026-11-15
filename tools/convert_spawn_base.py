@@ -7,6 +7,9 @@ Réglages : tools/spawn_base.json
   ground_layer  couche du build posée au niveau du bloc de surface du terrain
   spawn         [x, y, z] du bloc où l'on apparaît (repère du build rogné)
   spawn_yaw     orientation du regard à l'apparition, en degrés
+  foundation_depth  profondeur max du talus en escalier comblé sous le build
+                (vide et eau seulement, un bloc vers l'extérieur par bloc de descente ;
+                0 ou absent = pas de fondations)
 
 Fichiers régénérés (ne pas éditer à la main) :
   data/rlm_spawn/structure/lot.nbt
@@ -27,6 +30,10 @@ DATA_VERSION = 3955          # Minecraft 1.21.1
 MAX_PIECE = 48
 MAX_REACH = 224
 VERIFY_SAMPLES = 24
+MAX_FOUNDATION = 64
+MAX_FILL = 32768             # limite de blocs d'une commande fill
+FOUNDATION_BLOCK = "minecraft:grass_block"   # l'herbe recouverte redevient terre d'elle-même
+FOUNDATION_FILTER = "#minecraft:replaceable"
 ROTATIONS = ("none", "clockwise_90", "clockwise_180", "counterclockwise_90")
 ROTATION_YAW = {"none": 0, "clockwise_90": 90, "clockwise_180": 180, "counterclockwise_90": -90}
 # Valeur attendue par l'argument de rotation des commandes (place template).
@@ -84,9 +91,13 @@ def _validate(build, config):
     g = config["ground_layer"]
     if not 0 <= g < sy:
         raise ValueError("ground_layer %d hors du build (0 à %d)" % (g, sy - 1))
-    reach = -(-max(sx, sz) // 16) * 16
+    depth = config.get("foundation_depth", 0)
+    if not 0 <= depth <= MAX_FOUNDATION:
+        raise ValueError("foundation_depth %d hors limites (0 à %d)" % (depth, MAX_FOUNDATION))
+    reach = -(-(max(sx, sz) + depth) // 16) * 16
     if reach > MAX_REACH:
-        raise ValueError("build trop grand : %d x %d blocs, %d au maximum de côté" % (sx, sz, MAX_REACH))
+        raise ValueError("build trop grand : %d x %d blocs + %d de fondations, %d au maximum"
+                         % (sx, sz, depth, MAX_REACH))
     x, y, z = config["spawn"]
 
     def air_at(y_):
@@ -146,6 +157,30 @@ def _piece(build, origin, size, skip):
             "blocks": blocks, "entities": entities}
 
 
+def _footprint(build, rotation):
+    """Boîte (x1, z1, x2, z2) occupée par le build tourné, relative à l'ancre."""
+    sx, _, sz = build.size
+    corners = [rotate_offset(x, z, rotation) for x in (0, sx - 1) for z in (0, sz - 1)]
+    xs = [c[0] for c in corners]
+    zs = [c[1] for c in corners]
+    return min(xs), min(zs), max(xs), max(zs)
+
+
+def _foundation_lines(build, rotation, depth):
+    """Talus en escalier sous le build : la couche j (1..depth) est à ~-j, élargie de j-1."""
+    x1, z1, x2, z2 = _footprint(build, rotation)
+    lines = []
+    for j in range(1, depth + 1):
+        e = j - 1
+        ax, bx, az, bz = x1 - e, x2 + e, z1 - e, z2 + e
+        width = max(1, MAX_FILL // (bz - az + 1))
+        for sx0 in range(ax, bx + 1, width):
+            sx1 = min(bx, sx0 + width - 1)
+            lines.append("fill ~%d ~%d ~%d ~%d ~%d ~%d %s replace %s"
+                         % (sx0, -j, az, sx1, -j, bz, FOUNDATION_BLOCK, FOUNDATION_FILTER))
+    return lines
+
+
 def _verify_samples(build, skip):
     sx, sy, sz = build.size
     cells = [(x, y, z) for y in range(sy) for z in range(sz) for x in range(sx)
@@ -166,6 +201,7 @@ def convert(config: dict, out_root: Path) -> None:
     _warn(build)
 
     g = config["ground_layer"]
+    depth = config.get("foundation_depth", 0)
     sx, sy, sz = build.size
     skip = _exterior_buried_air(build, g)
     pieces = []
@@ -207,6 +243,8 @@ def convert(config: dict, out_root: Path) -> None:
     spx, spy, spz = config["spawn"]
     for rot in ROTATIONS:
         lines = [header, 'data modify storage rlm_spawn:data lot.rotation set value "%s"' % rot]
+        # Fondations d'abord : la pose du build réécrit ensuite ses propres pièces enterrées.
+        lines += _foundation_lines(build, rot, depth)
         for name, (ox, oy, oz), _ in pieces:
             rx, rz = rotate_offset(ox, oz, rot)
             lines.append("place template rlm_spawn:base/%s ~%d ~%d ~%d %s" % (name, rx, oy - g, rz, COMMAND_ROTATION[rot]))
@@ -223,6 +261,10 @@ def convert(config: dict, out_root: Path) -> None:
             vx, vz = rotate_offset(x, z, rot)
             verify.append("execute unless block ~%d ~%d ~%d %s run return fail"
                           % (vx, y - g, vz, build.block_name(x, y, z)))
+        if depth:
+            fx1, fz1, fx2, fz2 = _footprint(build, rot)
+            for cx, cz in ((fx1, fz1), (fx2, fz1), (fx1, fz2), (fx2, fz2)):
+                verify.append("execute if block ~%d ~-1 ~%d %s run return fail" % (cx, cz, FOUNDATION_FILTER))
         write("verify_" + rot, verify + ["return 1"])
 
 

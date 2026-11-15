@@ -1,5 +1,6 @@
 import contextlib
 import io
+import re
 import sys
 import tempfile
 import unittest
@@ -14,7 +15,8 @@ from nbtio import Int, read_nbt_file, write_nbt_file  # noqa: E402
 from test_litematic import litematic, region  # noqa: E402
 
 BASE_CONFIG = {"litematic": "tools/source/base.litematic", "ground_layer": 0,
-               "spawn": [41, 1, 40], "spawn_yaw": 0}
+               "spawn": [41, 1, 40], "spawn_yaw": 0, "foundation_depth": 24}
+FILL_RE = r"fill ~(-?\d+) ~(-?\d+) ~(-?\d+) ~(-?\d+) ~(-?\d+) ~(-?\d+) "
 
 
 def written_positions(piece):
@@ -86,12 +88,52 @@ class ConvertTest(unittest.TestCase):
         self.assertNotIn(" clockwise_180", half)
         self.assertIn("spawn.yaw set value -90",
                       (gen / "place_counterclockwise_90.mcfunction").read_text(encoding="utf-8"))
-        self.assertIn("#reach rlm_spawn 96", (gen / "constants.mcfunction").read_text(encoding="utf-8"))
-        self.assertEqual((gen / "area_loaded.mcfunction").read_text(encoding="utf-8").count("unless loaded"), 169)
+        # portée : build (82) + fondations (24) arrondi à 16
+        self.assertIn("#reach rlm_spawn 112", (gen / "constants.mcfunction").read_text(encoding="utf-8"))
+        self.assertEqual((gen / "area_loaded.mcfunction").read_text(encoding="utf-8").count("unless loaded"), 225)
         verify = (gen / "verify_none.mcfunction").read_text(encoding="utf-8")
-        self.assertEqual(verify.count("run return fail"), 24)
+        self.assertEqual(verify.count("run return fail"), 24 + 4)   # échantillon + 4 coins des fondations
         self.assertTrue(verify.rstrip().endswith("return 1"))
         self.assertEqual(len(list(gen.glob("*.mcfunction"))), 10)
+
+    def test_foundation_is_filled_before_the_build(self):
+        with contextlib.redirect_stderr(io.StringIO()):
+            convert(BASE_CONFIG, self.out())
+        gen = self.out() / "data/rlm_spawn/function/generated"
+        place = (gen / "place_none.mcfunction").read_text(encoding="utf-8")
+        filler = " minecraft:grass_block replace #minecraft:replaceable"
+        self.assertIn("fill ~0 ~-1 ~0 ~81 ~-1 ~80" + filler, place)
+        self.assertIn("fill ~-23 ~-24 ~-23 ~104 ~-24 ~103" + filler, place)
+        self.assertEqual(place.count("\nfill "), 24)
+        self.assertLess(place.index("\nfill "), place.index("place template"))
+        cw = (gen / "place_clockwise_90.mcfunction").read_text(encoding="utf-8")
+        self.assertIn("fill ~-80 ~-1 ~0 ~0 ~-1 ~81" + filler, cw)
+        verify = (gen / "verify_none.mcfunction").read_text(encoding="utf-8")
+        self.assertIn("execute if block ~0 ~-1 ~0 #minecraft:replaceable run return fail", verify)
+        self.assertIn("execute if block ~81 ~-1 ~80 #minecraft:replaceable run return fail", verify)
+        self.assertIn("execute if block ~-80 ~-1 ~81 #minecraft:replaceable run return fail",
+                      (gen / "verify_clockwise_90.mcfunction").read_text(encoding="utf-8"))
+
+    def test_no_foundation_by_default(self):
+        src = self.synthetic((2, 1, 1), ["minecraft:air", "minecraft:stone"], [1, 1])
+        convert({"litematic": src, "ground_layer": 0, "spawn": [0, 1, 0], "spawn_yaw": 0}, self.out())
+        place = (self.out() / "data/rlm_spawn/function/generated/place_none.mcfunction").read_text(encoding="utf-8")
+        self.assertNotIn("fill ", place)
+
+    def test_fill_commands_stay_under_the_volume_limit(self):
+        src = self.synthetic((200, 1, 1), ["minecraft:air", "minecraft:stone"], [1] * 200)
+        convert({"litematic": src, "ground_layer": 0, "spawn": [0, 1, 0], "spawn_yaw": 0,
+                 "foundation_depth": 20}, self.out())
+        place = (self.out() / "data/rlm_spawn/function/generated/place_none.mcfunction").read_text(encoding="utf-8")
+        fills = re.findall(FILL_RE, place)
+        self.assertTrue(fills)
+        covered = 0
+        for x1, y1, z1, x2, y2, z2 in fills:
+            vol = (abs(int(x2) - int(x1)) + 1) * (abs(int(y2) - int(y1)) + 1) * (abs(int(z2) - int(z1)) + 1)
+            self.assertLessEqual(vol, 32768)
+            if int(y1) == -20:
+                covered += vol
+        self.assertEqual(covered, (200 + 2 * 19) * (1 + 2 * 19))
 
     def test_buried_exterior_air_is_omitted(self):
         # 5x3x5, ground_layer 2 : sol de pierre plein en y=0, anneau en y=1 autour de (2, 1, 2)

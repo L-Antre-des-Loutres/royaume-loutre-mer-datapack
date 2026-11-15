@@ -23,4 +23,8 @@ execute unless block ~58 ~39 ~78 minecraft:andesite run return fail
 execute unless block ~43 ~43 ~76 minecraft:glass run return fail
 execute unless block ~28 ~49 ~21 minecraft:glass run return fail
 execute unless block ~26 ~54 ~55 minecraft:glass run return fail
+execute if block ~0 ~-1 ~0 #minecraft:replaceable run return fail
+execute if block ~81 ~-1 ~0 #minecraft:replaceable run return fail
+execute if block ~0 ~-1 ~80 #minecraft:replaceable run return fail
+execute if block ~81 ~-1 ~80 #minecraft:replaceable run return fail
 return 1
