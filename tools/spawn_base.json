@@ -1,0 +1,6 @@
+{
+  "litematic": "tools/source/base.litematic",
+  "ground_layer": 0,
+  "spawn": [41, 1, 40],
+  "spawn_yaw": 0
+}

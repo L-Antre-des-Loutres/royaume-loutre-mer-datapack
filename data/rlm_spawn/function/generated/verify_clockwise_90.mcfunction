@@ -1,0 +1,26 @@
+# Généré par tools/convert_spawn_base.py : ne pas éditer.
+execute unless block ~0 ~0 ~0 minecraft:grass_block run return fail
+execute unless block ~-14 ~0 ~4 minecraft:grass_block run return fail
+execute unless block ~-28 ~0 ~9 minecraft:oak_planks run return fail
+execute unless block ~-42 ~0 ~13 minecraft:oak_planks run return fail
+execute unless block ~-56 ~0 ~18 minecraft:oak_planks run return fail
+execute unless block ~-70 ~0 ~22 minecraft:oak_planks run return fail
+execute unless block ~-58 ~1 ~5 minecraft:stone run return fail
+execute unless block ~-69 ~3 ~12 minecraft:stone run return fail
+execute unless block ~-59 ~7 ~76 minecraft:stone run return fail
+execute unless block ~-69 ~11 ~56 minecraft:stone run return fail
+execute unless block ~-61 ~15 ~7 minecraft:andesite run return fail
+execute unless block ~-10 ~19 ~58 minecraft:stone run return fail
+execute unless block ~-71 ~22 ~23 minecraft:andesite run return fail
+execute unless block ~-54 ~26 ~4 minecraft:stone run return fail
+execute unless block ~-20 ~28 ~62 minecraft:brown_wool run return fail
+execute unless block ~-36 ~28 ~65 minecraft:brown_wool run return fail
+execute unless block ~-51 ~28 ~34 minecraft:glass run return fail
+execute unless block ~-67 ~28 ~23 minecraft:brown_wool run return fail
+execute unless block ~-9 ~31 ~56 minecraft:glass run return fail
+execute unless block ~-34 ~35 ~76 minecraft:glass run return fail
+execute unless block ~-78 ~39 ~58 minecraft:andesite run return fail
+execute unless block ~-76 ~43 ~43 minecraft:glass run return fail
+execute unless block ~-21 ~49 ~28 minecraft:glass run return fail
+execute unless block ~-55 ~54 ~26 minecraft:glass run return fail
+return 1
