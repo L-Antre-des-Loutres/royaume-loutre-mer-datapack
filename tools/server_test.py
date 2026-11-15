@@ -135,7 +135,12 @@ def remove_tree(path, attempts=10):
 
 def prepare_run(name, seed, with_pack, biome=None):
     run_dir = SERVER_DIR / name
-    remove_tree(run_dir)
+    try:
+        remove_tree(run_dir, attempts=3)
+    except OSError:
+        # Un fichier reste « en cours de suppression » tant qu'un autre programme le tient
+        # ouvert : on prend un dossier neuf, l'ancien se libérera plus tard.
+        run_dir = SERVER_DIR / ("%s-%d" % (name, int(time.time())))
     run_dir.mkdir(parents=True)
     shutil.copy(SERVER_DIR / "eula.txt", run_dir / "eula.txt")
     (run_dir / "server.properties").write_text("\n".join([
