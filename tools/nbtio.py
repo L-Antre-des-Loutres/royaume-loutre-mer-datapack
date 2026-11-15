@@ -124,5 +124,6 @@ def write_nbt_file(path, root: dict) -> None:
     out = bytearray(struct.pack(">b", TAG_COMPOUND))
     _write_string(out, "")
     _write_payload(out, root)
-    with gzip.open(path, "wb") as f:
+    # mtime=0 et sans nom de fichier : même contenu => mêmes octets (diffs git propres).
+    with open(path, "wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as f:
         f.write(bytes(out))

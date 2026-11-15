@@ -120,10 +120,22 @@ def parse_storage(text):
     return out
 
 
+def remove_tree(path, attempts=10):
+    """Windows verrouille parfois un fichier un instant (antivirus, indexation) : on réessaie."""
+    for i in range(attempts):
+        if not path.exists():
+            return
+        try:
+            shutil.rmtree(path)
+        except OSError:
+            if i == attempts - 1:
+                raise
+            time.sleep(2)
+
+
 def prepare_run(name, seed, with_pack, biome=None):
     run_dir = SERVER_DIR / name
-    if run_dir.exists():
-        shutil.rmtree(run_dir)
+    remove_tree(run_dir)
     run_dir.mkdir(parents=True)
     shutil.copy(SERVER_DIR / "eula.txt", run_dir / "eula.txt")
     (run_dir / "server.properties").write_text("\n".join([

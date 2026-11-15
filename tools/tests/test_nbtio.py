@@ -30,6 +30,15 @@ class NbtIoTest(unittest.TestCase):
             self.assertIs(type(back[k]), type(root[k]), k)
         self.assertIs(type(back["c"]["n"][0]), Double)
 
+    def test_output_is_reproducible(self):
+        root = {"i": Int(1)}
+        write_nbt_file(self.path, root)
+        first = self.path.read_bytes()
+        import time
+        time.sleep(1.1)
+        write_nbt_file(self.path, root)
+        self.assertEqual(self.path.read_bytes(), first)
+
     def test_reads_test_litematic(self):
         root = read_nbt_file(REPO_ROOT / "tools/source/base.litematic")
         self.assertEqual(root["MinecraftDataVersion"], 4438)
