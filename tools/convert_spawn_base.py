@@ -29,6 +29,9 @@ MAX_REACH = 224
 VERIFY_SAMPLES = 24
 ROTATIONS = ("none", "clockwise_90", "clockwise_180", "counterclockwise_90")
 ROTATION_YAW = {"none": 0, "clockwise_90": 90, "clockwise_180": 180, "counterclockwise_90": -90}
+# Valeur attendue par l'argument de rotation des commandes (place template).
+COMMAND_ROTATION = {"none": "none", "clockwise_90": "clockwise_90", "clockwise_180": "180",
+                    "counterclockwise_90": "counterclockwise_90"}
 
 
 def split_axis(n: int) -> list:
@@ -206,7 +209,7 @@ def convert(config: dict, out_root: Path) -> None:
         lines = [header, 'data modify storage rlm_spawn:data lot.rotation set value "%s"' % rot]
         for name, (ox, oy, oz), _ in pieces:
             rx, rz = rotate_offset(ox, oz, rot)
-            lines.append("place template rlm_spawn:base/%s ~%d ~%d ~%d %s" % (name, rx, oy - g, rz, rot))
+            lines.append("place template rlm_spawn:base/%s ~%d ~%d ~%d %s" % (name, rx, oy - g, rz, COMMAND_ROTATION[rot]))
         rx, rz = rotate_offset(spx, spz, rot)
         lines.append("data modify storage rlm_spawn:data spawn.yaw set value %s" % _yaw(config["spawn_yaw"], rot))
         lines.append("execute positioned ~%d ~%d ~%d run function rlm_spawn:step/set_spawn "

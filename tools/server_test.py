@@ -170,6 +170,12 @@ class Report:
         print("%s  %s%s" % ("PASS" if cond else "FAIL", label, ("  (%s)" % detail) if detail else ""), flush=True)
 
 
+def datapack_errors(run_dir):
+    log = (run_dir / "logs/latest.log").read_text(encoding="utf-8", errors="replace")
+    return [line for line in log.splitlines()
+            if "/ERROR]" in line and ("rlm_spawn" in line or "Failed to load" in line)]
+
+
 def spawn_level_dat(run_dir):
     data = read_nbt_file(run_dir / "world/level.dat")["Data"]
     return int(data["SpawnX"]), int(data["SpawnY"]), int(data["SpawnZ"])
@@ -180,6 +186,8 @@ def run_normal(java, seed, report):
     server = Server(java, run_dir)
     try:
         server.start()
+        errors = datapack_errors(run_dir)
+        report.check("datapack chargé sans erreur", not errors, "; ".join(errors[:3]))
         state = wait_final_state(server)
         report.check("état final = 3", state == 3, "état %s" % state)
         report.check("échantillon du build en place", server.score("#verified") == 1)

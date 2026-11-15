@@ -80,6 +80,10 @@ class ConvertTest(unittest.TestCase):
         self.assertIn("spawn.yaw set value 90", place)
         self.assertIn("execute positioned ~-40 ~1 ~41 run function rlm_spawn:step/set_spawn", place)
         self.assertIn("function rlm_spawn:generated/verify_clockwise_90", place)
+        half = (gen / "place_clockwise_180.mcfunction").read_text(encoding="utf-8")
+        # argument de rotation des commandes 1.21.1 : none, clockwise_90, 180, counterclockwise_90
+        self.assertIn("place template rlm_spawn:base/p_1_0_1 ~-41 ~0 ~-41 180", half)
+        self.assertNotIn(" clockwise_180", half)
         self.assertIn("spawn.yaw set value -90",
                       (gen / "place_counterclockwise_90.mcfunction").read_text(encoding="utf-8"))
         self.assertIn("#reach rlm_spawn 96", (gen / "constants.mcfunction").read_text(encoding="utf-8"))
