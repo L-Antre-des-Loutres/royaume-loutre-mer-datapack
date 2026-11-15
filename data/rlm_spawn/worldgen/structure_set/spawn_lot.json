@@ -1,0 +1,11 @@
+{
+  "structures": [
+    { "structure": "rlm_spawn:spawn_lot", "weight": 1 }
+  ],
+  "placement": {
+    "type": "minecraft:random_spread",
+    "spacing": 64,
+    "separation": 32,
+    "salt": 1712071125
+  }
+}
