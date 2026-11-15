@@ -1,0 +1,4 @@
+*.nbt binary
+*.litematic binary
+*.mcfunction text eol=lf
+*.json text eol=lf
