@@ -59,9 +59,17 @@ class DatapackTest(unittest.TestCase):
         loot = json.loads((DATA / "rlm_spawn/loot_table/locate_lot.json").read_text(encoding="utf-8"))
         self.assertEqual(loot["pools"][0]["entries"][0]["functions"][0]["destination"], "rlm_spawn:spawn_lot")
 
-    def test_single_biome(self):
+    def test_ocean_biomes_without_frozen_ones(self):
         tag = json.loads((DATA / "rlm_spawn/tags/worldgen/biome/has_structure/spawn_lot.json").read_text(encoding="utf-8"))
-        self.assertEqual(len(tag["values"]), 1)
+        values = tag["values"]
+        self.assertIn("minecraft:ocean", values)
+        self.assertIn("minecraft:deep_ocean", values)
+        self.assertFalse([v for v in values if "frozen" in v])
+        self.assertTrue(all(v.endswith("ocean") for v in values))
+
+    def test_ocean_lot_leaves_the_sea_untouched(self):
+        structure = json.loads((DATA / "rlm_spawn/worldgen/structure/spawn_lot.json").read_text(encoding="utf-8"))
+        self.assertEqual(structure["terrain_adaptation"], "none")
 
 
 if __name__ == "__main__":

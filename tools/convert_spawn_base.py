@@ -4,7 +4,8 @@ et génère les fonctions de pose.
 Usage : python tools/convert_spawn_base.py
 Réglages : tools/spawn_base.json
   litematic     chemin du .litematic (relatif à la racine du dépôt)
-  ground_layer  couche du build posée au niveau du bloc de surface du terrain
+  ground_layer  couche du build posée au niveau du bloc de surface du terrain ;
+                -1 = build posé juste au-dessus de la surface (eau, sol) sans la remplacer
   spawn         [x, y, z] du bloc où l'on apparaît (repère du build rogné)
   spawn_yaw     orientation du regard à l'apparition, en degrés
   foundation_depth  profondeur max du talus en escalier comblé sous le build
@@ -28,12 +29,15 @@ from nbtio import Double, Float, Int, write_nbt_file
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DATA_VERSION = 3955          # Minecraft 1.21.1
 MAX_PIECE = 48
-MAX_REACH = 224
+MAX_FORCELOAD = 256          # chunks max d'une commande forceload
 VERIFY_SAMPLES = 24
 MAX_FOUNDATION = 64
 MAX_FILL = 32768             # limite de blocs d'une commande fill
 FOUNDATION_BLOCK = "minecraft:grass_block"   # l'herbe recouverte redevient terre d'elle-même
 FOUNDATION_FILTER = "#minecraft:replaceable"
+# Blocs renommés depuis les anciennes versions : le jeu les met à jour au chargement
+# (on garde la DataVersion d'origine), la vérification doit donc chercher le nouveau nom.
+RENAMED = {"minecraft:grass": "minecraft:short_grass", "minecraft:grass_path": "minecraft:dirt_path"}
 ROTATIONS = ("none", "clockwise_90", "clockwise_180", "counterclockwise_90")
 ROTATION_YAW = {"none": 0, "clockwise_90": 90, "clockwise_180": 180, "counterclockwise_90": -90}
 # Valeur attendue par l'argument de rotation des commandes (place template).
@@ -89,15 +93,16 @@ def _exterior_buried_air(build, ground_layer) -> set:
 def _validate(build, config):
     sx, sy, sz = build.size
     g = config["ground_layer"]
-    if not 0 <= g < sy:
-        raise ValueError("ground_layer %d hors du build (0 à %d)" % (g, sy - 1))
+    if not -1 <= g < sy:
+        raise ValueError("ground_layer %d hors limites (-1 à %d)" % (g, sy - 1))
     depth = config.get("foundation_depth", 0)
     if not 0 <= depth <= MAX_FOUNDATION:
         raise ValueError("foundation_depth %d hors limites (0 à %d)" % (depth, MAX_FOUNDATION))
-    reach = -(-(max(sx, sz) + depth) // 16) * 16
-    if reach > MAX_REACH:
-        raise ValueError("build trop grand : %d x %d blocs + %d de fondations, %d au maximum"
-                         % (sx, sz, depth, MAX_REACH))
+    span = max(0, depth - 1)
+    chunks = _chunk_span(sx + 2 * span) * _chunk_span(sz + 2 * span)
+    if chunks > MAX_FORCELOAD:
+        raise ValueError("build trop grand : %d x %d blocs + %d de fondations = jusqu'à %d chunks à charger, "
+                         "%d au maximum" % (sx, sz, depth, chunks, MAX_FORCELOAD))
     x, y, z = config["spawn"]
 
     def air_at(y_):
@@ -108,7 +113,11 @@ def _validate(build, config):
         raise ValueError("point de spawn %r : il faut de l'air sur 2 blocs de haut" % (config["spawn"],))
     if y == 0 or air_at(y - 1):
         raise ValueError("point de spawn %r : il faut un bloc solide en dessous" % (config["spawn"],))
-    return reach
+
+
+def _chunk_span(length):
+    """Nombre de chunks qu'une bande de `length` blocs peut toucher au pire."""
+    return (length + 14) // 16 + 1
 
 
 def _warn(build):
@@ -121,6 +130,13 @@ def _warn(build):
         print("Attention : build fait avec une version plus récente (DataVersion %d > %d, 1.21.1). "
               "Vérifier que ces blocs existent en 1.21.1 : %s"
               % (build.data_version, DATA_VERSION, ", ".join(names)), file=sys.stderr)
+
+
+def _data_version(build):
+    """Version d'origine si elle est plus ancienne : le jeu mettra à jour blocs et entités."""
+    if 0 < build.data_version < DATA_VERSION:
+        return build.data_version
+    return DATA_VERSION
 
 
 def _int_list(values):
@@ -153,7 +169,7 @@ def _piece(build, origin, size, skip):
             entities.append({"pos": [Double(c) for c in rel],
                              "blockPos": _int_list(int(c // 1) for c in rel),
                              "nbt": {k: v for k, v in nbt.items() if k != "UUID"}})
-    return {"DataVersion": Int(DATA_VERSION), "size": _int_list(size), "palette": palette,
+    return {"DataVersion": Int(_data_version(build)), "size": _int_list(size), "palette": palette,
             "blocks": blocks, "entities": entities}
 
 
@@ -166,9 +182,30 @@ def _footprint(build, rotation):
     return min(xs), min(zs), max(xs), max(zs)
 
 
-def _foundation_lines(build, rotation, depth):
-    """Talus en escalier sous le build : la couche j (1..depth) est à ~-j, élargie de j-1."""
+def _load_rect(build, rotation, depth):
+    """Zone à charger avant la pose : emprise du build élargie du débord des fondations."""
     x1, z1, x2, z2 = _footprint(build, rotation)
+    e = max(0, depth - 1)
+    return x1 - e, z1 - e, x2 + e, z2 + e
+
+
+def _steps(a, b):
+    out = list(range(a, b + 1, 16))
+    if out[-1] != b:
+        out.append(b)
+    return out
+
+
+def _foundation_top(ground_layer):
+    """Hauteur (relative à l'ancre) de la première couche de fondations."""
+    return min(0, -ground_layer) - 1
+
+
+def _foundation_lines(build, rotation, depth, ground_layer):
+    """Talus en escalier sous le build : la couche j (1..depth) est j-1 blocs sous le haut
+    des fondations, élargie de j-1."""
+    x1, z1, x2, z2 = _footprint(build, rotation)
+    top = _foundation_top(ground_layer)
     lines = []
     for j in range(1, depth + 1):
         e = j - 1
@@ -177,7 +214,7 @@ def _foundation_lines(build, rotation, depth):
         for sx0 in range(ax, bx + 1, width):
             sx1 = min(bx, sx0 + width - 1)
             lines.append("fill ~%d ~%d ~%d ~%d ~%d ~%d %s replace %s"
-                         % (sx0, -j, az, sx1, -j, bz, FOUNDATION_BLOCK, FOUNDATION_FILTER))
+                         % (sx0, top - e, az, sx1, top - e, bz, FOUNDATION_BLOCK, FOUNDATION_FILTER))
     return lines
 
 
@@ -197,7 +234,7 @@ def convert(config: dict, out_root: Path) -> None:
     if not src.is_absolute():
         src = REPO_ROOT / src
     build = trim(load_litematic(src))
-    reach = _validate(build, config)
+    _validate(build, config)
     _warn(build)
 
     g = config["ground_layer"]
@@ -232,19 +269,21 @@ def convert(config: dict, out_root: Path) -> None:
         (gen / (name + ".mcfunction")).write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
     header = "# Généré par tools/convert_spawn_base.py : ne pas éditer."
-    write("constants", [header, "scoreboard players set #reach rlm_spawn %d" % reach])
-    area = [header]
-    for dx in range(-reach, reach + 1, 16):
-        for dz in range(-reach, reach + 1, 16):
-            area.append("execute unless loaded ~%d ~ ~%d run return fail" % (dx, dz))
-    write("area_loaded", area + ["return 1"])
+    # Exécutées à l'ancre : chargement forcé de la seule zone utile, selon la rotation.
+    for rot in ROTATIONS:
+        x1, z1, x2, z2 = _load_rect(build, rot, depth)
+        write("forceload_" + rot, [header, "forceload add ~%d ~%d ~%d ~%d" % (x1, z1, x2, z2)])
+        write("unforceload_" + rot, [header, "forceload remove ~%d ~%d ~%d ~%d" % (x1, z1, x2, z2)])
+        area = [header] + ["execute unless loaded ~%d ~ ~%d run return fail" % (x, z)
+                           for x in _steps(x1, x2) for z in _steps(z1, z2)]
+        write("area_loaded_" + rot, area + ["return 1"])
 
     samples = _verify_samples(build, skip)
     spx, spy, spz = config["spawn"]
     for rot in ROTATIONS:
         lines = [header, 'data modify storage rlm_spawn:data lot.rotation set value "%s"' % rot]
         # Fondations d'abord : la pose du build réécrit ensuite ses propres pièces enterrées.
-        lines += _foundation_lines(build, rot, depth)
+        lines += _foundation_lines(build, rot, depth, g)
         for name, (ox, oy, oz), _ in pieces:
             rx, rz = rotate_offset(ox, oz, rot)
             lines.append("place template rlm_spawn:base/%s ~%d ~%d ~%d %s" % (name, rx, oy - g, rz, COMMAND_ROTATION[rot]))
@@ -260,11 +299,12 @@ def convert(config: dict, out_root: Path) -> None:
         for x, y, z in samples:
             vx, vz = rotate_offset(x, z, rot)
             verify.append("execute unless block ~%d ~%d ~%d %s run return fail"
-                          % (vx, y - g, vz, build.block_name(x, y, z)))
+                          % (vx, y - g, vz, RENAMED.get(build.block_name(x, y, z), build.block_name(x, y, z))))
         if depth:
             fx1, fz1, fx2, fz2 = _footprint(build, rot)
             for cx, cz in ((fx1, fz1), (fx2, fz1), (fx1, fz2), (fx2, fz2)):
-                verify.append("execute if block ~%d ~-1 ~%d %s run return fail" % (cx, cz, FOUNDATION_FILTER))
+                verify.append("execute if block ~%d ~%d ~%d %s run return fail"
+                              % (cx, _foundation_top(g), cz, FOUNDATION_FILTER))
         write("verify_" + rot, verify + ["return 1"])
 
 

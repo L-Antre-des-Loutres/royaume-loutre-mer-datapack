@@ -88,13 +88,20 @@ class ConvertTest(unittest.TestCase):
         self.assertNotIn(" clockwise_180", half)
         self.assertIn("spawn.yaw set value -90",
                       (gen / "place_counterclockwise_90.mcfunction").read_text(encoding="utf-8"))
-        # portée : build (82) + fondations (24) arrondi à 16
-        self.assertIn("#reach rlm_spawn 112", (gen / "constants.mcfunction").read_text(encoding="utf-8"))
-        self.assertEqual((gen / "area_loaded.mcfunction").read_text(encoding="utf-8").count("unless loaded"), 225)
+        # zone à charger : emprise du build (82 x 81) élargie des fondations (24 - 1)
+        self.assertFalse((gen / "constants.mcfunction").exists())
+        self.assertIn("forceload add ~-23 ~-23 ~104 ~103", (gen / "forceload_none.mcfunction").read_text(encoding="utf-8"))
+        self.assertIn("forceload remove ~-23 ~-23 ~104 ~103", (gen / "unforceload_none.mcfunction").read_text(encoding="utf-8"))
+        self.assertIn("forceload add ~-103 ~-23 ~23 ~104",
+                      (gen / "forceload_clockwise_90.mcfunction").read_text(encoding="utf-8"))
+        area = (gen / "area_loaded_none.mcfunction").read_text(encoding="utf-8")
+        self.assertEqual(area.count("unless loaded"), 81)
+        self.assertIn("execute unless loaded ~-23 ~ ~-23 run return fail", area)
+        self.assertIn("execute unless loaded ~104 ~ ~103 run return fail", area)
         verify = (gen / "verify_none.mcfunction").read_text(encoding="utf-8")
         self.assertEqual(verify.count("run return fail"), 24 + 4)   # échantillon + 4 coins des fondations
         self.assertTrue(verify.rstrip().endswith("return 1"))
-        self.assertEqual(len(list(gen.glob("*.mcfunction"))), 10)
+        self.assertEqual(len(list(gen.glob("*.mcfunction"))), 20)
 
     def test_foundation_is_filled_before_the_build(self):
         with contextlib.redirect_stderr(io.StringIO()):
@@ -135,6 +142,41 @@ class ConvertTest(unittest.TestCase):
                 covered += vol
         self.assertEqual(covered, (200 + 2 * 19) * (1 + 2 * 19))
 
+    def test_ground_layer_minus_one_sits_on_the_surface(self):
+        # -1 : le build est posé juste au-dessus de la surface (eau ou sol) sans la remplacer
+        sx, sy, sz = 2, 3, 1
+        ids = [1, 1, 0, 0, 0, 0]
+        src = self.synthetic((sx, sy, sz), ["minecraft:air", "minecraft:stone"], ids)
+        convert({"litematic": src, "ground_layer": -1, "spawn": [0, 1, 0], "spawn_yaw": 0}, self.out())
+        # trim garde seulement la couche 0 (pierre) : 2 x 1 x 1
+        gen = self.out() / "data/rlm_spawn/function/generated"
+        place = (gen / "place_none.mcfunction").read_text(encoding="utf-8")
+        self.assertIn("place template rlm_spawn:base/p_0_0_0 ~0 ~1 ~0 none", place)
+        self.assertIn("execute positioned ~0 ~2 ~0 run function rlm_spawn:step/set_spawn", place)
+        self.assertIn("execute unless block ~0 ~1 ~0 minecraft:stone", (gen / "verify_none.mcfunction").read_text(encoding="utf-8"))
+        lot = read_nbt_file(self.out() / "data/rlm_spawn/structure/lot.nbt")
+        self.assertEqual(list(lot["size"]), [2, 2, 1])
+
+    def test_rejects_ground_layer_below_minus_one(self):
+        src = self.synthetic((2, 1, 1), ["minecraft:air", "minecraft:stone"], [1, 1])
+        with self.assertRaises(ValueError):
+            convert({"litematic": src, "ground_layer": -2, "spawn": [0, 1, 0], "spawn_yaw": 0}, self.out())
+
+    def test_old_build_keeps_its_data_version_for_the_game_upgrade(self):
+        # build 1.16.5 : le jeu met à jour les blocs et panneaux au chargement si on garde la version
+        src = self.synthetic((2, 1, 1), ["minecraft:air", "minecraft:stone", "minecraft:grass"], [1, 2],
+                             data_version=2586)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            convert({"litematic": src, "ground_layer": 0, "spawn": [0, 1, 0], "spawn_yaw": 0}, self.out())
+        piece = read_nbt_file(self.out() / "data/rlm_spawn/structure/base/p_0_0_0.nbt")
+        self.assertEqual(piece["DataVersion"], 2586)
+        self.assertEqual([p["Name"] for p in piece["palette"]], ["minecraft:stone", "minecraft:grass"])
+        verify = (self.out() / "data/rlm_spawn/function/generated/verify_none.mcfunction").read_text(encoding="utf-8")
+        self.assertIn("minecraft:short_grass", verify)     # nom après mise à jour par le jeu
+        self.assertNotIn("minecraft:grass ", verify)
+        self.assertEqual(err.getvalue(), "")
+
     def test_buried_exterior_air_is_omitted(self):
         # 5x3x5, ground_layer 2 : sol de pierre plein en y=0, anneau en y=1 autour de (2, 1, 2)
         sx, sy, sz = 5, 3, 5
@@ -174,8 +216,8 @@ class ConvertTest(unittest.TestCase):
         self.assertNotIn("x", with_nbt[0]["nbt"])
 
     def test_rejects_oversized_build(self):
-        src = self.synthetic((230, 1, 1), ["minecraft:air", "minecraft:stone"], [1] * 230)
-        with self.assertRaisesRegex(ValueError, "224"):
+        src = self.synthetic((250, 1, 250), ["minecraft:air", "minecraft:stone"], [1] * (250 * 250))
+        with self.assertRaisesRegex(ValueError, "256"):
             convert({"litematic": src, "ground_layer": 0, "spawn": [0, 1, 0], "spawn_yaw": 0}, self.out())
         self.assertFalse(self.out().exists())
 

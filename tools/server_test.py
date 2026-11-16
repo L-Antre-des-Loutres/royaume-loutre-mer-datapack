@@ -22,6 +22,8 @@ import zipfile
 from pathlib import Path
 
 from build_jar import build_jar
+from convert_spawn_base import RENAMED
+from litematic import load_litematic, trim
 from nbtio import read_nbt_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -198,7 +200,17 @@ def spawn_level_dat(run_dir):
     return int(data["SpawnX"]), int(data["SpawnY"]), int(data["SpawnZ"])
 
 
+def expected_from_config():
+    """Bloc attendu sous le spawn et décalage spawn -> bloc de surface, d'après les réglages."""
+    cfg = json.loads((REPO_ROOT / "tools/spawn_base.json").read_text(encoding="utf-8"))
+    build = trim(load_litematic(REPO_ROOT / cfg["litematic"]))
+    x, y, z = cfg["spawn"]
+    floor = build.block_name(x, y - 1, z)
+    return RENAMED.get(floor, floor), y - cfg["ground_layer"], cfg["ground_layer"]
+
+
 def run_normal(java, seed, report):
+    floor, spawn_rise, ground_layer = expected_from_config()
     run_dir = prepare_run("run-%s" % seed, seed, True)
     server = Server(java, run_dir)
     try:
@@ -216,9 +228,14 @@ def run_normal(java, seed, report):
         pos = "%s %s %s" % (spawn["x"], spawn["y"], spawn["z"])
         print("      rotation %s, repère %d %d, spawn %s" % (lot.get("rotation"), lot["x"], lot["z"], pos))
         report.check("spawn dans le biome",
-                     server.test("execute in minecraft:overworld positioned %s if biome ~ ~ ~ minecraft:plains" % pos))
-        report.check("plancher sous le spawn",
-                     server.test("execute in minecraft:overworld positioned %s if block ~ ~-1 ~ minecraft:oak_planks" % pos))
+                     server.test("execute in minecraft:overworld positioned %s if biome ~ ~ ~ "
+                                 "#rlm_spawn:has_structure/spawn_lot" % pos))
+        report.check("plancher sous le spawn (%s)" % floor,
+                     server.test("execute in minecraft:overworld positioned %s if block ~ ~-1 ~ %s" % (pos, floor)))
+        if ground_layer < 0:
+            report.check("surface (eau ou sol) intacte sous le build",
+                         server.test("execute in minecraft:overworld positioned %s unless block ~ ~-%d ~ #minecraft:air"
+                                     % (pos, spawn_rise)))
         m = server.command("locate structure rlm_spawn:spawn_lot",
                            r"is at \[(-?\d+), [^,]+, (-?\d+)\]|Could not find")
         report.check("/locate trouve le repère", m.group(1) is not None

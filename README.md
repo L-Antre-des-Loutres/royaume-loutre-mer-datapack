@@ -17,10 +17,14 @@ starters RLM.
 
 ## Le spawn dans la structure
 
-À la création d'un monde, le jeu prépare des terrains aplanis dans le biome
-choisi. Au premier chargement, le datapack prend celui qui est le plus proche du
-centre du monde, y pose le build une seule fois, y place le point d'apparition et
-y envoie chaque nouveau joueur. Après une mort sans lit, on revient à l'intérieur.
+Le build actuel est le **Paradis Æther** (`tools/source/paradis-aether.litematic`),
+posé **sur l'océan**.
+
+À la création d'un monde, le jeu marque des emplacements (repères invisibles) dans
+les biomes choisis. Au premier chargement, le datapack prend celui qui est le plus
+proche du centre du monde, charge la seule zone du build, l'y pose une seule fois,
+y place le point d'apparition et y envoie chaque nouveau joueur. Après une mort
+sans lit, on revient au point d'apparition.
 
 - Seuls les mondes tout neufs sont concernés : un monde déjà existant n'est
   jamais modifié (son spawn ne bouge pas).
@@ -29,20 +33,30 @@ y envoie chaque nouveau joueur. Après une mort sans lit, on revient à l'intér
 
 ### Changer le biome
 
-Un seul fichier : `data/rlm_spawn/tags/worldgen/biome/has_structure/spawn_lot.json`.
-Garder une seule valeur (par exemple `"minecraft:ocean"` ou un biome de mod).
+Liste des biomes : `data/rlm_spawn/tags/worldgen/biome/has_structure/spawn_lot.json`.
+Actuellement tous les océans sauf les océans gelés (icebergs, surface en glace).
+
+Sur l'océan, le repère ne modifie pas le terrain (`"terrain_adaptation": "none"`
+dans `data/rlm_spawn/worldgen/structure/spawn_lot.json`). Pour un biome terrestre,
+remettre `"beard_box"` (terrain aplani autour du build) et prévoir des fondations
+(`foundation_depth` ci-dessous).
 
 ### Changer le build
 
-1. Remplacer `tools/source/base.litematic` par le nouveau fichier Litematica
-   (une seule région, 224 blocs de côté au maximum).
+1. Mettre le nouveau fichier Litematica dans `tools/source/` (une seule région,
+   au plus 256 chunks à charger, soit environ 224 x 224 blocs) et indiquer son
+   chemin dans `tools/spawn_base.json`. `tools/source/base.litematic` sert aux tests :
+   le garder.
 2. Régler `tools/spawn_base.json` (coordonnées comptées depuis le coin du build
    une fois les couches vides retirées) :
-   - `ground_layer` : couche du build posée au niveau du sol du terrain ; les
-     couches du dessous sont enterrées ;
+   - `ground_layer` : couche du build posée au niveau du bloc de surface (sol ou
+     eau) ; les couches du dessous sont enterrées. `-1` : le build est posé juste
+     au-dessus de la surface sans la remplacer (cas de l'océan) ;
    - `spawn` : `[x, y, z]` du bloc où l'on apparaît (2 blocs d'air, un bloc
      solide dessous) ;
-   - `spawn_yaw` : direction du regard en degrés.
+   - `spawn_yaw` : direction du regard en degrés (180 = vers le nord du build) ;
+   - `foundation_depth` : profondeur max d'un talus en escalier comblé sous le
+     build (vide et eau seulement), utile sur terrain en pente. `0` sur l'océan.
 3. Régénérer puis reconstruire le jar :
 
 ```bash
@@ -54,14 +68,15 @@ python tools/build_jar.py
 ```
 
 Le convertisseur avertit si le build contient des blocs de mods ou vient d'une
-version plus récente que 1.21.1. Les fichiers de `data/rlm_spawn/structure/` et
+version plus récente que 1.21.1. Un build d'une version plus ancienne (le Paradis
+Æther est en 1.16.5) garde sa version : le jeu met à jour ses blocs et ses
+panneaux au chargement. Les fichiers de `data/rlm_spawn/structure/` et
 `data/rlm_spawn/function/generated/` sont régénérés : ne pas les éditer à la main.
 
 ### Limites connues
 
-- D'autres terrains préparés existent ailleurs dans le même biome : ce sont des
-  clairières plates et vides, espacées d'environ 1 000 blocs. Elles apparaissent
-  aussi dans les nouvelles zones des mondes existants.
+- Le biome n'est vérifié qu'au point de départ : un grand build peut déborder
+  sur une plage ou une île voisine.
 - Le build est orienté au hasard d'un monde à l'autre.
 - Au retour de l'End sans lit, le jeu fait réapparaître sur le toit.
 
