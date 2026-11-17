@@ -11,6 +11,10 @@ Réglages : tools/spawn_base.json
   foundation_depth  profondeur max du talus en escalier comblé sous le build
                 (vide et eau seulement, un bloc vers l'extérieur par bloc de descente ;
                 0 ou absent = pas de fondations)
+  ground_blocks blocs du terrain d'origine copiés avec le build (eau, algues…) : pas posés
+                dans les couches <= ground_layer, le terrain du monde reste à leur place
+  exclude_entities  ids d'entités à ne pas recopier (ex. Pokémon sauvages capturés avec le build)
+  empty_containers  true : vide coffres, tonneaux, etc. (restes de chantier)
 
 Fichiers régénérés (ne pas éditer à la main) :
   data/rlm_spawn/structure/lot.nbt
@@ -219,13 +223,36 @@ def _foundation_lines(build, rotation, depth, ground_layer):
 
 
 def _verify_samples(build, skip):
+    """Blocs posés répartis dans le build. Blocs vanilla de préférence : un serveur sans
+    les mods du pack (tests) ne connaît pas les autres."""
     sx, sy, sz = build.size
     cells = [(x, y, z) for y in range(sy) for z in range(sz) for x in range(sx)
              if (x, y, z) not in skip and not build.is_air(x, y, z)]
+    vanilla = [c for c in cells if build.block_name(*c).startswith("minecraft:")]
+    cells = vanilla or cells
     if len(cells) <= VERIFY_SAMPLES:
         return cells
     step = len(cells) / VERIFY_SAMPLES
     return [cells[int(i * step)] for i in range(VERIFY_SAMPLES)]
+
+
+def _ground_block_cells(build, ground_layer, names) -> set:
+    """Blocs du terrain d'origine (eau, algues…) dans les couches <= ground_layer."""
+    names = set(names)
+    if not names:
+        return set()
+    sx, sy, sz = build.size
+    return {(x, y, z) for y in range(min(ground_layer + 1, sy)) for z in range(sz) for x in range(sx)
+            if build.block_name(x, y, z) in names}
+
+
+def _clean(build, config):
+    """Retire les entités exclues et, si demandé, le contenu des conteneurs."""
+    excluded = set(config.get("exclude_entities", []))
+    build.entities = [(p, nbt) for p, nbt in build.entities if nbt.get("id") not in excluded]
+    if config.get("empty_containers"):
+        build.block_entities = {p: {k: v for k, v in nbt.items() if k != "Items"}
+                                for p, nbt in build.block_entities.items()}
 
 
 def convert(config: dict, out_root: Path) -> None:
@@ -236,11 +263,12 @@ def convert(config: dict, out_root: Path) -> None:
     build = trim(load_litematic(src))
     _validate(build, config)
     _warn(build)
+    _clean(build, config)
 
     g = config["ground_layer"]
     depth = config.get("foundation_depth", 0)
     sx, sy, sz = build.size
-    skip = _exterior_buried_air(build, g)
+    skip = _exterior_buried_air(build, g) | _ground_block_cells(build, g, config.get("ground_blocks", []))
     pieces = []
     for iy, (oy, ly) in enumerate(split_axis(sy)):
         for iz, (oz, lz) in enumerate(split_axis(sz)):

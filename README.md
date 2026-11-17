@@ -56,7 +56,15 @@ remettre `"beard_box"` (terrain aplani autour du build) et prévoir des fondatio
      solide dessous) ;
    - `spawn_yaw` : direction du regard en degrés (180 = vers le nord du build) ;
    - `foundation_depth` : profondeur max d'un talus en escalier comblé sous le
-     build (vide et eau seulement), utile sur terrain en pente. `0` sur l'océan.
+     build (vide et eau seulement), utile sur terrain en pente. `0` sur l'océan ;
+   - `ground_blocks` : blocs du terrain d'origine copiés avec le build (eau, algues…),
+     pas reposés au niveau du sol et en dessous : le terrain du monde reste ;
+   - `exclude_entities` : entités à ne pas recopier, par exemple les Pokémon
+     sauvages (`cobblemon:pokemon`) présents lors de la copie ;
+   - `empty_containers` : `true` vide coffres et tonneaux (restes de chantier).
+
+   Les blocs de bedrock aux deux coins du Paradis Æther sont des repères de
+   sélection : ils sont gardés.
 3. Régénérer puis reconstruire le jar :
 
 ```bash

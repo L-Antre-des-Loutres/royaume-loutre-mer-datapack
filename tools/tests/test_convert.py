@@ -11,7 +11,7 @@ sys.path.insert(0, str(REPO_ROOT / "tools"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from convert_spawn_base import convert, rotate_offset, split_axis  # noqa: E402
-from nbtio import Int, read_nbt_file, write_nbt_file  # noqa: E402
+from nbtio import Byte, Double, Int, read_nbt_file, write_nbt_file  # noqa: E402
 from test_litematic import litematic, region  # noqa: E402
 
 BASE_CONFIG = {"litematic": "tools/source/base.litematic", "ground_layer": 0,
@@ -36,9 +36,9 @@ class ConvertTest(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def synthetic(self, size, palette, ids, data_version=3955, tile_entities=()):
+    def synthetic(self, size, palette, ids, data_version=3955, tile_entities=(), entities=()):
         path = self.tmp / "synthetic.litematic"
-        root = litematic({"r": region(size, (0, 0, 0), palette, ids, tile_entities)})
+        root = litematic({"r": region(size, (0, 0, 0), palette, ids, tile_entities, entities)})
         root["MinecraftDataVersion"] = Int(data_version)
         write_nbt_file(path, root)
         return str(path)
@@ -176,6 +176,60 @@ class ConvertTest(unittest.TestCase):
         self.assertIn("minecraft:short_grass", verify)     # nom après mise à jour par le jeu
         self.assertNotIn("minecraft:grass ", verify)
         self.assertEqual(err.getvalue(), "")
+
+    def test_excluded_entities_are_dropped(self):
+        # Pokémon sauvages capturés avec le build : on ne les recopie pas
+        ents = [{"id": "cobblemon:pokemon", "Pos": [Double(0.5), Double(0.0), Double(0.5)]},
+                {"id": "minecraft:armor_stand", "Pos": [Double(1.5), Double(0.0), Double(0.5)]}]
+        src = self.synthetic((2, 1, 1), ["minecraft:air", "minecraft:stone"], [1, 1], entities=ents)
+        base = {"litematic": src, "ground_layer": 0, "spawn": [0, 1, 0], "spawn_yaw": 0}
+        convert(dict(base, exclude_entities=["cobblemon:pokemon"]), self.out())
+        piece = read_nbt_file(self.out() / "data/rlm_spawn/structure/base/p_0_0_0.nbt")
+        self.assertEqual([e["nbt"]["id"] for e in piece["entities"]], ["minecraft:armor_stand"])
+        convert(base, self.out())
+        piece = read_nbt_file(self.out() / "data/rlm_spawn/structure/base/p_0_0_0.nbt")
+        self.assertEqual(len(piece["entities"]), 2)
+
+    def test_containers_can_be_emptied(self):
+        chest = {"x": Int(1), "y": Int(0), "z": Int(0), "id": "minecraft:chest",
+                 "Items": [{"id": "minecraft:tnt", "count": Int(7), "Slot": Byte(0)}]}
+        src = self.synthetic((2, 1, 1), ["minecraft:air", "minecraft:stone", "minecraft:chest"], [1, 2],
+                             tile_entities=[chest])
+        base = {"litematic": src, "ground_layer": 0, "spawn": [0, 1, 0], "spawn_yaw": 0}
+
+        def chest_nbt():
+            piece = read_nbt_file(self.out() / "data/rlm_spawn/structure/base/p_0_0_0.nbt")
+            return [b["nbt"] for b in piece["blocks"] if "nbt" in b][0]
+        convert(dict(base, empty_containers=True), self.out())
+        self.assertNotIn("Items", chest_nbt())
+        self.assertEqual(chest_nbt()["id"], "minecraft:chest")
+        convert(base, self.out())
+        self.assertEqual(len(chest_nbt()["Items"]), 1)
+
+    def test_ground_blocks_are_not_written_at_or_below_ground(self):
+        # mer d'origine copiée avec le build : couches 0-1 = eau/algues, la couche 1 est la surface
+        sx, sy, sz = 2, 3, 1
+        names = ["minecraft:air", "minecraft:water", "minecraft:stone", "minecraft:kelp"]
+        ids = [1, 2,      # y0 : eau, pierre (poteau)
+               1, 3,      # y1 : eau, algue
+               2, 0]      # y2 : pierre, air
+        src = self.synthetic((sx, sy, sz), names, ids)
+        convert({"litematic": src, "ground_layer": 1, "spawn": [1, 2, 0], "spawn_yaw": 0,
+                 "ground_blocks": ["minecraft:water", "minecraft:kelp"]}, self.out())
+        piece = read_nbt_file(self.out() / "data/rlm_spawn/structure/base/p_0_0_0.nbt")
+        pos = written_positions(piece)
+        self.assertEqual(pos, {(1, 0, 0), (0, 2, 0), (1, 2, 0)})
+        verify = (self.out() / "data/rlm_spawn/function/generated/verify_none.mcfunction").read_text(encoding="utf-8")
+        self.assertNotIn("water", verify)
+        self.assertNotIn("kelp", verify)
+
+    def test_verify_samples_vanilla_blocks_when_there_are_some(self):
+        # un serveur sans le mod ne connaît pas ses blocs : la vérification s'appuie sur le vanilla
+        src = self.synthetic((3, 1, 1), ["minecraft:air", "minecraft:stone", "cobblemon:pc"], [1, 2, 2])
+        convert({"litematic": src, "ground_layer": 0, "spawn": [0, 1, 0], "spawn_yaw": 0}, self.out())
+        verify = (self.out() / "data/rlm_spawn/function/generated/verify_none.mcfunction").read_text(encoding="utf-8")
+        self.assertIn("minecraft:stone", verify)
+        self.assertNotIn("cobblemon:pc", verify)
 
     def test_buried_exterior_air_is_omitted(self):
         # 5x3x5, ground_layer 2 : sol de pierre plein en y=0, anneau en y=1 autour de (2, 1, 2)
