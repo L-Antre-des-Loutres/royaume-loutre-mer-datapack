@@ -101,7 +101,36 @@ class ConvertTest(unittest.TestCase):
         verify = (gen / "verify_none.mcfunction").read_text(encoding="utf-8")
         self.assertEqual(verify.count("run return fail"), 24 + 4)   # échantillon + 4 coins des fondations
         self.assertTrue(verify.rstrip().endswith("return 1"))
-        self.assertEqual(len(list(gen.glob("*.mcfunction"))), 20)
+        self.assertEqual(len(list(gen.glob("*.mcfunction"))), 36)
+
+    def test_site_check_samples_the_footprint_and_a_margin(self):
+        # « en plein milieu de l'océan » : biome et surface vérifiés tout autour du build
+        cfg = dict(BASE_CONFIG, foundation_depth=0,
+                   site_check={"margin": 48, "step": 32, "surface_block": "minecraft:water"})
+        with contextlib.redirect_stderr(io.StringIO()):
+            convert(cfg, self.out())
+        gen = self.out() / "data/rlm_spawn/function/generated"
+        ok = (gen / "site_ok_none.mcfunction").read_text(encoding="utf-8")
+        # emprise 0..81 x 0..80, marge 48 -> -48..129 x -48..128, pas de 32 + bords : 7 x 7 points
+        self.assertEqual(ok.count("unless biome"), 49)
+        self.assertIn("execute unless biome ~-48 ~ ~-48 #rlm_spawn:has_structure/spawn_lot run return fail", ok)
+        self.assertIn("execute unless block ~129 ~ ~128 minecraft:water run return fail", ok)
+        self.assertIn("execute unless block ~129 ~1 ~128 minecraft:air run return fail", ok)
+        self.assertTrue(ok.rstrip().endswith("return 1"))
+        self.assertIn("forceload add ~-48 ~-48", (gen / "site_forceload_none.mcfunction").read_text(encoding="utf-8"))
+        self.assertIn("forceload remove ~129 ~128", (gen / "site_unforceload_none.mcfunction").read_text(encoding="utf-8"))
+        self.assertEqual((gen / "site_loaded_none.mcfunction").read_text(encoding="utf-8").count("unless loaded"), 49)
+        # rotation : emprise -80..0 x 0..81 -> -128..48 x -48..129
+        self.assertIn("execute unless biome ~-128 ~ ~-48 ",
+                      (gen / "site_ok_clockwise_90.mcfunction").read_text(encoding="utf-8"))
+
+    def test_no_site_check_by_default(self):
+        src = self.synthetic((2, 1, 1), ["minecraft:air", "minecraft:stone"], [1, 1])
+        convert({"litematic": src, "ground_layer": 0, "spawn": [0, 1, 0], "spawn_yaw": 0}, self.out())
+        gen = self.out() / "data/rlm_spawn/function/generated"
+        self.assertNotIn("unless", (gen / "site_ok_none.mcfunction").read_text(encoding="utf-8"))
+        self.assertTrue((gen / "site_ok_none.mcfunction").read_text(encoding="utf-8").rstrip().endswith("return 1"))
+        self.assertNotIn("forceload", (gen / "site_forceload_none.mcfunction").read_text(encoding="utf-8"))
 
     def test_foundation_is_filled_before_the_build(self):
         with contextlib.redirect_stderr(io.StringIO()):

@@ -15,6 +15,10 @@ Réglages : tools/spawn_base.json
                 dans les couches <= ground_layer, le terrain du monde reste à leur place
   exclude_entities  ids d'entités à ne pas recopier (ex. Pokémon sauvages capturés avec le build)
   empty_containers  true : vide coffres, tonneaux, etc. (restes de chantier)
+  site_check    {"margin": 48, "step": 32, "surface_block": "minecraft:water"} : avant la pose,
+                vérifie une grille de points (pas `step`) sur l'emprise + `margin` blocs autour :
+                biome de la liste et, si `surface_block`, ce bloc à la surface avec de l'air
+                au-dessus. Sinon le repère est écarté et le suivant est essayé.
 
 Fichiers régénérés (ne pas éditer à la main) :
   data/rlm_spawn/structure/lot.nbt
@@ -193,8 +197,8 @@ def _load_rect(build, rotation, depth):
     return x1 - e, z1 - e, x2 + e, z2 + e
 
 
-def _steps(a, b):
-    out = list(range(a, b + 1, 16))
+def _steps(a, b, step=16):
+    out = list(range(a, b + 1, step))
     if out[-1] != b:
         out.append(b)
     return out
@@ -305,6 +309,27 @@ def convert(config: dict, out_root: Path) -> None:
         area = [header] + ["execute unless loaded ~%d ~ ~%d run return fail" % (x, z)
                            for x in _steps(x1, x2) for z in _steps(z1, z2)]
         write("area_loaded_" + rot, area + ["return 1"])
+
+    # Vérification du site (exécutée à l'ancre, au niveau de la surface), avant toute pose.
+    site = config.get("site_check") or {}
+    for rot in ROTATIONS:
+        points = []
+        if site:
+            m, step = site.get("margin", 0), site.get("step", 32)
+            x1, z1, x2, z2 = _footprint(build, rot)
+            points = [(x, z) for x in _steps(x1 - m, x2 + m, step) for z in _steps(z1 - m, z2 + m, step)]
+        surface = site.get("surface_block")
+        write("site_forceload_" + rot, [header] + ["forceload add ~%d ~%d" % p for p in points])
+        write("site_unforceload_" + rot, [header] + ["forceload remove ~%d ~%d" % p for p in points])
+        write("site_loaded_" + rot, [header] + ["execute unless loaded ~%d ~ ~%d run return fail" % p
+                                                for p in points] + ["return 1"])
+        ok = [header]
+        for x, z in points:
+            ok.append("execute unless biome ~%d ~ ~%d #rlm_spawn:has_structure/spawn_lot run return fail" % (x, z))
+            if surface:
+                ok.append("execute unless block ~%d ~ ~%d %s run return fail" % (x, z, surface))
+                ok.append("execute unless block ~%d ~1 ~%d minecraft:air run return fail" % (x, z))
+        write("site_ok_" + rot, ok + ["return 1"])
 
     samples = _verify_samples(build, skip)
     spx, spy, spz = config["spawn"]

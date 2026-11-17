@@ -135,7 +135,7 @@ def remove_tree(path, attempts=10):
             time.sleep(2)
 
 
-def prepare_run(name, seed, with_pack, biome=None):
+def prepare_run(name, seed, with_pack, biome=None, reject_all=False):
     run_dir = SERVER_DIR / name
     try:
         remove_tree(run_dir, attempts=3)
@@ -150,23 +150,26 @@ def prepare_run(name, seed, with_pack, biome=None):
         "view-distance=4", "simulation-distance=4", "spawn-protection=0", "max-players=1", ""]),
         encoding="utf-8")
     if with_pack:
-        install_pack(run_dir, biome)
+        install_pack(run_dir, biome, reject_all)
     return run_dir
 
 
-def install_pack(run_dir, biome=None):
+def install_pack(run_dir, biome=None, reject_all=False):
     packs = run_dir / "world/datapacks"
     packs.mkdir(parents=True, exist_ok=True)
     jar = build_jar(REPO_ROOT, run_dir / "build")
     target = packs / "rlm.zip"
-    if biome is None:
+    if biome is None and not reject_all:
         shutil.copy(jar, target)
         return
     with zipfile.ZipFile(jar) as src, zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as dst:
         for item in src.infolist():
             data = src.read(item.filename)
-            if item.filename == BIOME_TAG:
+            if biome and item.filename == BIOME_TAG:
                 data = json.dumps({"values": [biome]}).encode("utf-8")
+            if reject_all and "/generated/site_ok_" in item.filename:
+                # surface impossible : tous les sites sont refusés
+                data = data.replace(b"#rlm_spawn:sea_surface", b"minecraft:bedrock")
             dst.writestr(item, data)
 
 
@@ -220,6 +223,7 @@ def run_normal(java, seed, report):
         state = wait_final_state(server)
         report.check("état final = 3", state == 3, "état %s" % state)
         report.check("échantillon du build en place", server.score("#verified") == 1)
+        print("      sites écartés avant celui-ci : %s" % server.score("#attempts"))
         st = server.storage()
         lot, spawn = st.get("lot", {}), st.get("spawn", {})
         report.check("stockage lot et spawn présents", lot and spawn, str(st))
@@ -264,6 +268,20 @@ def run_void(java, seed, biome, report):
         server.stop()
 
 
+def run_reject_all(java, seed, report):
+    run_dir = prepare_run("run-%s-reject" % seed, seed, True, reject_all=True)
+    server = Server(java, run_dir)
+    try:
+        server.start()
+        state = wait_final_state(server, timeout=1800)
+        report.check("tous les sites refusés : état -2", state == -2, "état %s" % state)
+        attempts = server.score("#attempts")
+        report.check("tous les sites refusés : 16 essais", attempts == 16, "essais %s" % attempts)
+        report.check("tous les sites refusés : aucun chunk chargé de force", not server.forceloaded())
+    finally:
+        server.stop()
+
+
 def run_existing(java, seed, report):
     run_dir = prepare_run("run-%s-existing" % seed, seed, False)
     server = Server(java, run_dir)
@@ -292,6 +310,7 @@ def main() -> int:
     ap.add_argument("--seed", required=True)
     ap.add_argument("--biome")
     ap.add_argument("--existing-world", action="store_true")
+    ap.add_argument("--reject-all", action="store_true")
     args = ap.parse_args()
     if not (SERVER_DIR / "server.jar").is_file():
         print("Manque %s" % (SERVER_DIR / "server.jar"), file=sys.stderr)
@@ -301,7 +320,9 @@ def main() -> int:
         print("Manque %s avec eula=true (à créer par l'utilisateur)" % eula, file=sys.stderr)
         return 2
     report = Report()
-    if args.existing_world:
+    if args.reject_all:
+        run_reject_all(args.java, args.seed, report)
+    elif args.existing_world:
         run_existing(args.java, args.seed, report)
     elif args.biome:
         run_void(args.java, args.seed, args.biome, report)

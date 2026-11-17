@@ -1,10 +1,27 @@
 {
   "litematic": "tools/source/paradis-aether.litematic",
   "ground_layer": 1,
-  "spawn": [108, 31, 96],
+  "spawn": [
+    108,
+    31,
+    96
+  ],
   "spawn_yaw": 180,
   "foundation_depth": 0,
-  "ground_blocks": ["minecraft:water", "minecraft:kelp", "minecraft:kelp_plant", "minecraft:seagrass", "minecraft:tall_seagrass"],
-  "exclude_entities": ["cobblemon:pokemon"],
-  "empty_containers": true
+  "ground_blocks": [
+    "minecraft:water",
+    "minecraft:kelp",
+    "minecraft:kelp_plant",
+    "minecraft:seagrass",
+    "minecraft:tall_seagrass"
+  ],
+  "exclude_entities": [
+    "cobblemon:pokemon"
+  ],
+  "empty_containers": true,
+  "site_check": {
+    "margin": 48,
+    "step": 32,
+    "surface_block": "#rlm_spawn:sea_surface"
+  }
 }

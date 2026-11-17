@@ -14,7 +14,7 @@
               "decoration": "minecraft:red_x",
               "zoom": 2,
               "search_radius": 30,
-              "skip_existing_chunks": false
+              "skip_existing_chunks": true
             }
           ]
         }

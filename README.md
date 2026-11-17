@@ -61,7 +61,13 @@ remettre `"beard_box"` (terrain aplani autour du build) et prévoir des fondatio
      pas reposés au niveau du sol et en dessous : le terrain du monde reste ;
    - `exclude_entities` : entités à ne pas recopier, par exemple les Pokémon
      sauvages (`cobblemon:pokemon`) présents lors de la copie ;
-   - `empty_containers` : `true` vide coffres et tonneaux (restes de chantier).
+   - `empty_containers` : `true` vide coffres et tonneaux (restes de chantier) ;
+   - `site_check` : avant la pose, une grille de points (tous les `step` blocs) sur
+     l'emprise du build et `margin` blocs autour doit être dans un biome de la liste,
+     avec `surface_block` à la surface et de l'air au-dessus (`#rlm_spawn:sea_surface` :
+     eau, algues, herbes marines, bulles). Sinon le repère est écarté et le suivant
+     est essayé, jusqu'à 16 fois ; au-delà, le spawn reste normal. Actuellement :
+     marge 48, pas 32, soit un build entouré d'au moins 48 blocs d'océan.
 
    Les blocs de bedrock aux deux coins du Paradis Æther sont des repères de
    sélection : ils sont gardés.
@@ -83,8 +89,8 @@ panneaux au chargement. Les fichiers de `data/rlm_spawn/structure/` et
 
 ### Limites connues
 
-- Le biome n'est vérifié qu'au point de départ : un grand build peut déborder
-  sur une plage ou une île voisine.
+- La vérification du site se fait sur une grille de points : une île plus petite
+  que l'écart entre deux points (32 blocs) pourrait passer entre les mailles.
 - Le build est orienté au hasard d'un monde à l'autre.
 - Au retour de l'End sans lit, le jeu fait réapparaître sur le toit.
 

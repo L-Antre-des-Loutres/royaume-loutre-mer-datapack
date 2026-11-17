@@ -58,6 +58,8 @@ class DatapackTest(unittest.TestCase):
         self.assertEqual(tag["values"], ["rlm_spawn:spawn_lot"])
         loot = json.loads((DATA / "rlm_spawn/loot_table/locate_lot.json").read_text(encoding="utf-8"))
         self.assertEqual(loot["pools"][0]["entries"][0]["functions"][0]["destination"], "rlm_spawn:spawn_lot")
+        # un repère écarté (site hors océan) ne doit jamais être rendu à nouveau par la carte
+        self.assertTrue(loot["pools"][0]["entries"][0]["functions"][0]["skip_existing_chunks"])
 
     def test_ocean_biomes_without_frozen_ones(self):
         tag = json.loads((DATA / "rlm_spawn/tags/worldgen/biome/has_structure/spawn_lot.json").read_text(encoding="utf-8"))
@@ -66,6 +68,15 @@ class DatapackTest(unittest.TestCase):
         self.assertIn("minecraft:deep_ocean", values)
         self.assertFalse([v for v in values if "frozen" in v])
         self.assertTrue(all(v.endswith("ocean") for v in values))
+
+    def test_block_tags_used_by_the_site_check_exist(self):
+        refs = set()
+        for f in (DATA / "rlm_spawn/function").rglob("*.mcfunction"):
+            refs |= set(re.findall(r"#(rlm_spawn:[a-z0-9_/]+) run return fail", f.read_text(encoding="utf-8")))
+        refs.discard("rlm_spawn:has_structure/spawn_lot")
+        for ref in sorted(refs):
+            with self.subTest(ref=ref):
+                self.assertTrue(resource_path(ref, "tags/block", ".json").is_file(), ref)
 
     def test_ocean_lot_leaves_the_sea_untouched(self):
         structure = json.loads((DATA / "rlm_spawn/worldgen/structure/spawn_lot.json").read_text(encoding="utf-8"))
