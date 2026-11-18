@@ -1,10 +1,10 @@
 {
   "litematic": "tools/source/paradis-aether.litematic",
-  "ground_layer": 1,
+  "ground_layer": -1,
   "spawn": [
     108,
-    31,
-    96
+    29,
+    97
   ],
   "spawn_yaw": 180,
   "foundation_depth": 0,
@@ -16,7 +16,15 @@
     "minecraft:tall_seagrass"
   ],
   "exclude_entities": [
-    "cobblemon:pokemon"
+    "cobblemon:pokemon",
+    "cobblemon:npc",
+    "minecraft:zombie",
+    "minecraft:spider",
+    "minecraft:skeleton",
+    "minecraft:creeper",
+    "minecraft:item",
+    "minecraft:trader_llama",
+    "minecraft:wandering_trader"
   ],
   "empty_containers": true,
   "site_check": {
